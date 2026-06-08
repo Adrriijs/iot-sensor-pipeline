@@ -114,17 +114,13 @@ docker compose down
 
 ## Key Engineering Decisions
 
-**Why Kafka?**
-Decouples the simulator from consumers. If a consumer is slow or temporarily down, no data is lost. Kafka buffers messages and consumers catch up when they recover.
+**Kafka:** Decouples the simulator from consumers. If a consumer is slow or temporarily down, no data is lost. Kafka buffers messages and consumers catch up when they recover.
 
-**Why two separate consumer groups?**
-ingestor-group and alert-group each get a full copy of every message. Adding a new consumer requires zero changes to existing code.
+**Separate consumer groups:** `ingestor-group` and `alert-group` each get a full copy of every message. Adding a new consumer requires zero changes to existing code.
 
-**Why WebFlux + Mono/Flux?**
-IoT systems emit high-frequency data. Reactive non-blocking I/O lets one thread handle many concurrent reads and writes without blocking.
+**WebFlux + Mono/Flux:** IoT systems emit high-frequency data. Reactive non-blocking I/O lets one thread handle many concurrent reads and writes without blocking.
 
-**Dead Letter Queue**
-Failed messages are routed to sensor.dlq instead of being silently dropped. In production, an ops team would monitor this topic.
+**Dead Letter Queue:** Failed messages are routed to `sensor.dlq` instead of being silently dropped. In production, an ops team would monitor this topic.
 
 ## Simulated Devices
 
