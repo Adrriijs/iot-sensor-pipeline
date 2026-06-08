@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IoT Sensor Pipeline</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: .3px; }
+    header .sub { font-size: .75rem; color: #94a3b8; margin-top: 3px; }
+    .live { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: #4ade80; }
+    .dot { width: 8px; height: 8px; background: #4ade80; border-radius: 50%; animation: blink 1.4s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    #offline-bar {
+      display: none;
+      background: #fef2f2;
+      border-bottom: 2px solid #fca5a5;
+      color: #b91c1c;
+      padding: .5rem 2rem;
+      font-size: .82rem;
+      font-weight: 500;
+    }
+
+    main { padding: 1.5rem 2rem; max-width: 1280px; margin: 0 auto; }
+
+    /* Stats */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: #cbd5e1;
+      border: 1px solid #cbd5e1;
+      margin-bottom: 1.5rem;
+    }
+    @media(max-width:700px){ .stats { grid-template-columns: repeat(2,1fr); } }
+    .stat {
+      background: #fff;
+      padding: 1.2rem 1.4rem;
+    }
+    .stat .label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #64748b; }
+    .stat .val   { font-size: 2.2rem; font-weight: 800; margin-top: .2rem; line-height: 1; }
+    .stat.s-readings .val { color: #2563eb; }
+    .stat.s-alerts   .val { color: #0f172a; }
+    .stat.s-high     .val { color: #d97706; }
+    .stat.s-critical .val { color: #dc2626; }
+
+    /* Toolbar */
+    .toolbar { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .btn {
+      padding: .5rem 1.2rem;
+      font-size: .85rem;
+      font-weight: 700;
+      border: 2px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      transition: background .12s, color .12s;
+    }
+    .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    .btn-outline { background: #fff; color: #0f172a; border-color: #cbd5e1; }
+    .btn-outline:hover { background: #f1f5f9; }
+    #sim-msg { font-size: .82rem; color: #64748b; }
+
+    /* Grid */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media(max-width:860px){ .grid { grid-template-columns: 1fr; } }
+
+    /* Cards */
+    .card { background: #fff; border: 1px solid #cbd5e1; }
+    .card-head {
+      padding: .65rem 1.2rem;
+      border-bottom: 2px solid #0f172a;
+      font-size: .72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      background: #0f172a;
+      color: #f8fafc;
+    }
+
+    /* Devices */
+    .device-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .9rem 1.2rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .device-row:last-child { border-bottom: none; }
+    .device-row:hover { background: #f8fafc; }
+    .d-name { font-size: .9rem; font-weight: 700; }
+    .d-sub  { font-size: .73rem; color: #64748b; margin-top: 2px; }
+    .temp   { font-size: 1.5rem; font-weight: 800; text-align: right; }
+    .tag {
+      display: inline-block;
+      font-size: .65rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-top: 3px;
+    }
+    .tag-normal   { background: #dcfce7; color: #15803d; }
+    .tag-high     { background: #fef9c3; color: #a16207; }
+    .tag-critical { background: #fee2e2; color: #b91c1c; }
+    .tag-offline  { background: #f1f5f9; color: #64748b; }
+
+    /* Alerts */
+    .alert-scroll { max-height: 378px; overflow-y: auto; }
+    .alert-row {
+      display: flex;
+      gap: .85rem;
+      padding: .75rem 1.2rem;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: .82rem;
+    }
+    .alert-row:last-child { border-bottom: none; }
+    .a-bar { width: 3px; flex-shrink: 0; }
+    .bar-high     { background: #d97706; }
+    .bar-critical { background: #dc2626; }
+    .a-msg  { color: #0f172a; line-height: 1.45; }
+    .a-time { font-size: .72rem; color: #64748b; margin-top: 2px; }
+    .empty  { padding: 2.5rem; text-align: center; color: #94a3b8; font-size: .85rem; }
+
+    /* Tool links */
+    .tools { display: flex; gap: .75rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .tool-link {
+      padding: .45rem 1rem;
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      font-size: .78rem;
+      color: #475569;
+      text-decoration: none;
+      font-weight: 600;
+      transition: border-color .12s, color .12s;
+    }
+    .tool-link:hover { border-color: #2563eb; color: #2563eb; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>IoT Sensor Pipeline</h1>
+    <div class="sub">Kafka &rarr; Spring Boot &rarr; MongoDB</div>
+  </div>
+  <div class="live"><span class="dot"></span> Live — every 2s</div>
+</header>
+
+<div id="offline-bar">
+  Backend offline &mdash; run <strong>./mvnw spring-boot:run</strong> to start the server.
+</div>
+
+<main>
+
+  <div class="stats">
+    <div class="stat s-readings">
+      <div class="label">Readings</div>
+      <div class="val" id="s-readings">—</div>
+    </div>
+    <div class="stat s-alerts">
+      <div class="label">Alerts</div>
+      <div class="val" id="s-alerts">—</div>
+    </div>
+    <div class="stat s-high">
+      <div class="label">High</div>
+      <div class="val" id="s-high">—</div>
+    </div>
+    <div class="stat s-critical">
+      <div class="label">Critical</div>
+      <div class="val" id="s-critical">—</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-primary" id="sim-btn" onclick="triggerReading()">&#9654; Trigger Reading</button>
+    <a class="btn btn-outline" href="/swagger-ui.html" target="_blank" rel="noopener">API Docs</a>
+    <span id="sim-msg"></span>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-head">Devices — Latest Reading</div>
+      <div id="devices">
+        <div class="empty">Loading…</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">Recent Alerts</div>
+      <div class="alert-scroll" id="alerts">
+        <div class="empty">No alerts yet</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tools">
+    <a class="tool-link" href="/swagger-ui.html" target="_blank" rel="noopener">Swagger UI — :8080</a>
+    <a class="tool-link" href="http://localhost:8090" target="_blank" rel="noopener">Kafka UI — :8090</a>
+    <a class="tool-link" href="http://localhost:8081" target="_blank" rel="noopener">Mongo Express — :8081</a>
+  </div>
+
+</main>
+
+<script>
+  const DEVICES = ['device-001','device-002','device-003','device-004','device-005'];
+  let offline = false;
+
+  function color(t)  { return t == null ? '#94a3b8' : t >= 85 ? '#dc2626' : t >= 75 ? '#d97706' : '#16a34a'; }
+  function tag(t)    { return t == null ? 'offline' : t >= 85 ? 'critical' : t >= 75 ? 'high' : 'normal'; }
+  function ago(iso)  {
+    if (!iso) return '';
+    const s = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (s < 5) return 'just now';
+    if (s < 60) return s + 's ago';
+    if (s < 3600) return Math.floor(s/60) + 'm ago';
+    return Math.floor(s/3600) + 'h ago';
+  }
+  async function get(path) {
+    const r = await fetch(path);
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }
+
+  async function refreshStats() {
+    try {
+      const s = await get('/api/stats');
+      document.getElementById('s-readings').textContent = s.totalReadings  ?? '—';
+      document.getElementById('s-alerts').textContent   = s.totalAlerts    ?? '—';
+      document.getElementById('s-high').textContent     = s.highAlerts     ?? '—';
+      document.getElementById('s-critical').textContent = s.criticalAlerts ?? '—';
+      if (offline) { offline = false; document.getElementById('offline-bar').style.display = 'none'; }
+    } catch (_) {
+      if (!offline) { offline = true; document.getElementById('offline-bar').style.display = 'block'; }
+    }
+  }
+
+  async function refreshDevices() {
+    const results = await Promise.allSettled(
+      DEVICES.map(id => get('/api/readings/' + id + '/latest').catch(() => null))
+    );
+    const rows = DEVICES.map((id, i) => {
+      const r = results[i].value;
+      const t = r?.temperature;
+      return `<div class="device-row">
+        <div>
+          <div class="d-name">${id}</div>
+          <div class="d-sub">${r ? ago(r.timestamp) : 'no data'}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="temp" style="color:${color(t)}">${t != null ? t + '°C' : '—'}</div>
+          <span class="tag tag-${tag(t)}">${tag(t)}</span>
+        </div>
+      </div>`;
+    });
+    document.getElementById('devices').innerHTML = rows.join('');
+  }
+
+  async function refreshAlerts() {
+    try {
+      const list = await get('/api/alerts');
+      if (!list?.length) { document.getElementById('alerts').innerHTML = '<div class="empty">No alerts yet</div>'; return; }
+      const sorted = [...list].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0,25);
+      document.getElementById('alerts').innerHTML = sorted.map(a => `
+        <div class="alert-row">
+          <div class="a-bar ${a.severity === 'CRITICAL' ? 'bar-critical' : 'bar-high'}"></div>
+          <div>
+            <div class="a-msg">${a.message || a.deviceId + ' — ' + a.temperature + '°C'}</div>
+            <div class="a-time">${a.severity} &middot; ${ago(a.timestamp)}</div>
+          </div>
+        </div>`).join('');
+    } catch (_) {}
+  }
+
+  async function refresh() {
+    await Promise.all([refreshStats(), refreshDevices(), refreshAlerts()]);
+  }
+
+  async function triggerReading() {
+    const btn = document.getElementById('sim-btn');
+    const msg = document.getElementById('sim-msg');
+    btn.disabled = true;
+    msg.style.color = '#64748b'; msg.textContent = 'Sending…';
+    try {
+      const r = await fetch('/api/simulate', { method: 'POST' });
+      const d = await r.json();
+      msg.style.color = '#16a34a'; msg.textContent = `Triggered: ${d.deviceId} → ${d.temperature}°C`;
+      setTimeout(refresh, 400);
+    } catch (_) {
+      msg.style.color = '#dc2626'; msg.textContent = 'Server not running — start it first.';
+    }
+    btn.disabled = false;
+    setTimeout(() => { msg.textContent = ''; }, 4000);
+  }
+
+  refresh();
+  setInterval(refresh, 2000);
+</script>
+</body>
+</html>
