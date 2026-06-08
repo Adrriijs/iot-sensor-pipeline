@@ -103,15 +103,6 @@ docker compose down
 | POST   | /api/simulate                     | Manually trigger a sensor reading  |
 | GET    | /api/stats                        | Pipeline stats (counts)            |
 
-## Tooling
-
-| Tool          | URL                        | Purpose                         |
-|---------------|----------------------------|---------------------------------|
-| Dashboard     | http://localhost:8080      | Live sensor & alert viewer      |
-| Swagger UI    | http://localhost:8080/swagger-ui.html | Interactive API docs |
-| Kafka UI      | http://localhost:8090      | Browse Kafka topics & messages  |
-| Mongo Express | http://localhost:8081      | Browse MongoDB collections      |
-
 ## Key Engineering Decisions
 
 **Kafka:** Decouples the simulator from consumers. If a consumer is slow or temporarily down, no data is lost. Kafka buffers messages and consumers catch up when they recover.
